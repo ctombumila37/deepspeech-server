@@ -2,6 +2,8 @@ import io
 import logging
 from collections import namedtuple
 import scipy.io.wavfile as wav
+import numpy as np
+import ffmpeg
 
 from rx import Observable
 from cyclotron import Component
@@ -61,7 +63,19 @@ def make_driver(loop=None):
                 if type(item) is SpeechToText:
                     if ds_model is not None:
                         try:
-                            fs, audio = wav.read(io.BytesIO(item.data))
+                            # use ffmpeg to convert to raw
+                            out, _ = (ffmpeg
+                                .input('-', format='ogg', )
+                                .output('-', format='s16le', acodec='pcm_s16le', ac=1, ar='16k')
+                                .run(capture_stdout=True, input=item.data)
+                            )
+
+                            # to numpy array
+                            audio = np.frombuffer(out, dtype=np.int16)
+                            fs = 16000
+
+                            # fs, audio = wav.read(io.BytesIO(item.data))
+
                             # convert to mono.
                             # todo: move to a component or just a function here
                             if len(audio.shape) > 1:
